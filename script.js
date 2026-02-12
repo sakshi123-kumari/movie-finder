@@ -1,63 +1,62 @@
 const form = document.getElementById("searchForm");
-const searchInput = document.getElementById("searchInput");
-const resultsContainer = document.getElementById("results");
-const historyList = document.getElementById("historyList");
+const input = document.getElementById("searchInput");
+const results = document.getElementById("results");
+const historyList = document.getElementById("history");
+const darkToggle = document.getElementById("darkToggle");
 
-const API_KEY = "YOUR_API_KEY"; // Replace with your OMDb API key
-
-// Fetch Movies
-async function fetchMovies(query) {
-  resultsContainer.innerHTML = "Loading...";
+// Fetch Data (No API Key Required)
+async function fetchShows(query) {
+  results.innerHTML = "<div class='loader'></div>";
 
   try {
-    const response = await fetch(
-      `https://www.omdbapi.com/?s=${query}&apikey=${API_KEY}`
-    );
+    const response = await fetch(`https://api.tvmaze.com/search/shows?q=${query}`);
 
     if (!response.ok) {
-      throw new Error("Network error");
+      throw new Error("Network response failed");
     }
 
     const data = await response.json();
 
-    if (data.Response === "False") {
-      showError("No movies found.");
+    if (data.length === 0) {
+      showError("No results found.");
       return;
     }
 
-    displayMovies(data.Search);
+    displayResults(data);
 
   } catch (error) {
     showError("Unable to fetch data. Please try again later.");
-    console.error(error);
   }
 }
 
-// Display Movies Dynamically
-function displayMovies(movies) {
-  resultsContainer.innerHTML = "";
+// Display Results Dynamically
+function displayResults(data) {
+  results.innerHTML = "";
 
-  movies.forEach(movie => {
+  data.forEach(item => {
+    const show = item.show;
+
     const card = document.createElement("div");
     card.classList.add("card");
 
     card.innerHTML = `
-      <h3>${movie.Title}</h3>
-      <img src="${movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/300x400"}" />
-      <p><strong>Year:</strong> ${movie.Year}</p>
+      <img src="${show.image ? show.image.medium : 'https://via.placeholder.com/300x400'}">
+      <h3>${show.name}</h3>
+      <p><strong>Rating:</strong> ${show.rating.average || "N/A"}</p>
+      <p><strong>Language:</strong> ${show.language}</p>
     `;
 
-    resultsContainer.appendChild(card);
+    results.appendChild(card);
   });
 }
 
 // Error Message
 function showError(message) {
-  resultsContainer.innerHTML = `<p class="error">${message}</p>`;
+  results.innerHTML = `<p class="error">${message}</p>`;
 }
 
-// Save Search to LocalStorage
-function saveSearch(query) {
+// Save Search History
+function saveHistory(query) {
   let history = JSON.parse(localStorage.getItem("history")) || [];
 
   if (!history.includes(query)) {
@@ -68,9 +67,9 @@ function saveSearch(query) {
   renderHistory();
 }
 
-// Render Search History
+// Render History
 function renderHistory() {
-  const history = JSON.parse(localStorage.getItem("history")) || [];
+  let history = JSON.parse(localStorage.getItem("history")) || [];
   historyList.innerHTML = "";
 
   history.forEach(item => {
@@ -78,26 +77,36 @@ function renderHistory() {
     li.textContent = item;
 
     li.addEventListener("click", () => {
-      searchInput.value = item;
-      fetchMovies(item);
+      input.value = item;
+      fetchShows(item);
     });
 
     historyList.appendChild(li);
   });
 }
 
-// Form Submit Event
+// Form Submit
 form.addEventListener("submit", function (e) {
   e.preventDefault();
+  const query = input.value.trim();
 
-  const query = searchInput.value.trim();
+  if (!query) return;
 
-  if (query === "") return;
-
-  fetchMovies(query);
-  saveSearch(query);
-  searchInput.value = "";
+  fetchShows(query);
+  saveHistory(query);
+  input.value = "";
 });
 
-// Load history on page load
-window.addEventListener("DOMContentLoaded", renderHistory);
+// Dark Mode Toggle
+darkToggle.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("darkMode", document.body.classList.contains("dark"));
+});
+
+// Load Dark Mode + History
+window.addEventListener("DOMContentLoaded", () => {
+  if (localStorage.getItem("darkMode") === "true") {
+    document.body.classList.add("dark");
+  }
+  renderHistory();
+});
